@@ -94,8 +94,44 @@ void EnforceAreaConstraint(
     if (!p4.fixed) p4.position.y -= correction;
 }
 
+int Orientation(Vector2 p, Vector2 q, Vector2 r) {
+    float val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+    if (fabs(val) < 1e-6) return 0;
+    return (val > 0) ? 1 : 2;
+}
+
+// 외곽선convex hull 알고리즘
+std::vector<Vector2> ConvexHull(const std::vector<Vector2>& points) {
+    int n = points.size();
+    if (n < 3) return points;
+
+    std::vector<Vector2> hull;
+    int l = 0;
+
+    for (int i = 1; i < n; i++)
+        if (points[i].x < points[l].x)
+            l = i;
+
+    int p = l, q;
+    do {
+        hull.push_back(points[p]);
+        q = (p + 1) % n;
+
+        for (int i = 0; i < n; i++) {
+            if (Orientation(points[p], points[i], points[q]) == 2)
+                q = i;
+        }
+        p = q;
+    } while (p != l);
+
+    return hull;
+}
+
+
 int main() {
-    InitWindow(1000, 1000, "Slime Simulator (Verlet + PBD)");
+    const int screenWidth = 1000;
+    const int screenHeight = 1000; // 화면 크기 설정
+    InitWindow(screenWidth, screenHeight, "Slime Simulator (Verlet + PBD)");
     SetTargetFPS(100);
 
 
@@ -158,21 +194,20 @@ int main() {
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && grabbedIndex != -1) {
             Particle& p = particles[grabbedIndex];
             
-            Vector2 delta = Vector2Subtract(mouse, p.position);
-            float dist = Vector2Length(delta);
-            if (dist > 0.0f) {
-                Vector2 direction = Vector2Scale(delta, 1.0f / dist);
-                Vector2 offset = Vector2Scale(direction, mouseSpringStiffness * dt);
-                p.position = Vector2Add(p.position, offset);
-                
-                // 이게 중요함: prevPosition을 따라가게 설정
-                p.prevPosition = Vector2Subtract(p.position, offset);
-            }
+            Vector2 velocity = Vector2Subtract(mouse, p.position);
+            float springForce = 4000.0f;  // 힘이 클수록 더 강하게 당겨짐
+            Vector2 acceleration = Vector2Scale(velocity, springForce * dt * dt);
+            p.position = Vector2Add(p.position, acceleration);
+
+            // 반발력 적용 (Verlet 방식의 prevPosition 업데이트)
+            Vector2 pullBack = Vector2Subtract(p.position, p.prevPosition);
+            p.prevPosition = Vector2Subtract(p.position, Vector2Scale(pullBack, 0.9f));
         }
 
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             grabbedIndex = -1; // 마우스 버튼을 놓으면 해제
         }
+
 
         // 스프링 연결
         for (int iter = 0; iter < PBDiterations; ++iter) {
@@ -218,10 +253,12 @@ int main() {
             }
 		}
 
+        
 
         // Verlet 위치 업데이트 + 바닥 충돌
         for (auto& p : particles) {
             if (p.fixed) continue;
+
             Vector2 temp = p.position;
             Vector2 acceleration = { 0, gravity };
 			
@@ -264,20 +301,37 @@ int main() {
         // 메쉬 렌더링 ==> DrawTriangle
         BeginDrawing();
         ClearBackground(RAYWHITE);
+        //DrawRectangle(0, 0, screenWidth, screenHeight, ColorAlpha(RAYWHITE, 0.9f)); // 살짝 흐릿한 누적
 
-        Color slimeColor = ColorAlpha(SKYBLUE, 0.8f);
+        // 나중에 최적화 위해 삼각형 남겨둠
+        //Color slimeColor = ColorAlpha(SKYBLUE, 0.8f);
 
-        for (int y = 0; y < rows - 1; ++y) {
-            for (int x = 0; x < cols - 1; ++x) {
-                int i1 = y * cols + x;
-                int i2 = i1 + 1;
-                int i3 = i1 + cols;
-                int i4 = i3 + 1;
+        //for (int y = 0; y < rows - 1; ++y) {
+        //    for (int x = 0; x < cols - 1; ++x) {
+        //        int i1 = y * cols + x;
+        //        int i2 = i1 + 1;
+        //        int i3 = i1 + cols;
+        //        int i4 = i3 + 1;
 
-                // 사각형을 두 개의 삼각형으로 나눠 그리기
-                DrawTriangle(particles[i1].position, particles[i4].position, particles[i2].position, slimeColor);
-                DrawTriangle(particles[i1].position, particles[i3].position, particles[i4].position, slimeColor);
-            }
+        //        // 사각형을 두 개의 삼각형으로 나눠 그리기
+        //        DrawTriangle(particles[i1].position, particles[i4].position, particles[i2].position, slimeColor);
+        //        DrawTriangle(particles[i1].position, particles[i3].position, particles[i4].position, slimeColor);
+        //    }
+        //}
+
+        // 외곽선
+        std::vector<Vector2> slimePoints;
+        for (auto& p : particles)
+            if (!p.fixed)
+                slimePoints.push_back(p.position);
+
+        Color core = ColorAlpha(SKYBLUE, 0.6f);
+        Color shell = ColorAlpha(BLUE, 0.2f);
+        for (const auto& p : particles) {
+            Color inner = ColorAlpha(SKYBLUE, 0.5f);
+            Color outer = ColorAlpha(SKYBLUE, 0.1f);
+
+            DrawCircleGradient(p.position.x, p.position.y, p.radius * 2.0f, core, shell);
         }
 
         DrawText("slime grid simulation!", 10, 10, 20, DARKGRAY);
