@@ -304,20 +304,20 @@ int main() {
         //DrawRectangle(0, 0, screenWidth, screenHeight, ColorAlpha(RAYWHITE, 0.9f)); // 살짝 흐릿한 누적
 
         // 나중에 최적화 위해 삼각형 남겨둠
-        //Color slimeColor = ColorAlpha(SKYBLUE, 0.8f);
+        Color slimeColor = ColorAlpha(SKYBLUE, 0.8f);
 
-        //for (int y = 0; y < rows - 1; ++y) {
-        //    for (int x = 0; x < cols - 1; ++x) {
-        //        int i1 = y * cols + x;
-        //        int i2 = i1 + 1;
-        //        int i3 = i1 + cols;
-        //        int i4 = i3 + 1;
+        for (int y = 0; y < rows - 1; ++y) {
+            for (int x = 0; x < cols - 1; ++x) {
+                int i1 = y * cols + x;
+                int i2 = i1 + 1;
+                int i3 = i1 + cols;
+                int i4 = i3 + 1;
 
-        //        // 사각형을 두 개의 삼각형으로 나눠 그리기
-        //        DrawTriangle(particles[i1].position, particles[i4].position, particles[i2].position, slimeColor);
-        //        DrawTriangle(particles[i1].position, particles[i3].position, particles[i4].position, slimeColor);
-        //    }
-        //}
+                // 사각형을 두 개의 삼각형으로 나눠 그리기
+                DrawTriangle(particles[i1].position, particles[i4].position, particles[i2].position, slimeColor);
+                DrawTriangle(particles[i1].position, particles[i3].position, particles[i4].position, slimeColor);
+            }
+        }
 
         // 외곽선
         std::vector<Vector2> slimePoints;
@@ -325,14 +325,14 @@ int main() {
             if (!p.fixed)
                 slimePoints.push_back(p.position);
 
-        Color core = ColorAlpha(SKYBLUE, 0.6f);
+       /* Color core = ColorAlpha(SKYBLUE, 0.6f);
         Color shell = ColorAlpha(BLUE, 0.2f);
         for (const auto& p : particles) {
             Color inner = ColorAlpha(SKYBLUE, 0.5f);
             Color outer = ColorAlpha(SKYBLUE, 0.1f);
 
             DrawCircleGradient(p.position.x, p.position.y, p.radius * 2.0f, core, shell);
-        }
+        }*/
 
         DrawText("slime grid simulation!", 10, 10, 20, DARKGRAY);
         //DrawFPS(10, 10);
